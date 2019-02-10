@@ -3,3 +3,5 @@ image:
 ports:
   - port: 8000
   - port: 8080
+tasks:
+  - command: "resolve app && run app/target/app.jar"
