@@ -1,0 +1,5 @@
+image:
+  file: Dockerfile
+ports:
+  - port: 8000
+  - port: 8080
