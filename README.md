@@ -51,10 +51,61 @@ To still your thirst for wisdom let's have a look at a rare picture of the mythi
 ![Service lifecycle](https://github.com/Sandared/io.jatoms.osgi.ds/blob/master/img-osgi-service-lifecycles.png)
 
 OSGi offers you two lifecycles to choose from, an immediate (left) and a delayed (right) one. 
-Your component is immediate if it is annotated with `@Component` and does not implement/extend anything ooor you declared your service/component to be immediate explicitly by adding `immediate=true` to your `@Component` annotation, like this: `@Component(immediate=true)`
+Your component is immediate if it is annotated with `@Component` and does not implement/extend anything or if you declared your service/component to be immediate explicitly by adding `immediate=true` to your `@Component` annotation, like this: `@Component(immediate=true)`. Any other `@cComponent` annotated class will be considered delayed. But what does that mean for you?
+
+In the example shown in this repository we decided to write our hello world class like this:
+
+```java
+@Component
+public class HelloOSGi {
+  @Activate
+  void activate () {
+    System.out.println("Hello OSGi!");
+  }
+}
+```
+
+This is obviously an implicit immediate service/component as it does not implement or extend anything and is annotated with @Component. An immediate service/component is started as soon as the bundle it belongs to is activated and all references it declares (in this case none) are satisfied. When all those preconditions are met, then the component/service is started, i.e., its `@Activate` method is called. If our class would have implemented any interface or explicitly stated to be not immediate then your service/component would not have been started, i.e., the `@Activate` annotated method would not have been called. 
+
+The simple answer to your question is therefore: Use `@Activate`. But life is never easy, so that's not the whole picture.
+As you might have guessed already, there's more than just an `@Acitvate`, as the lifecycles also have more states than just ACTIVE ;)
+
+Services/Components in OSGi have a full lifecycle, that means they can start, they can stop and also be updated without stopping and starting again. Therefore, corresponding annotations exist to support such a lifecycle, i.e., `@Activate`, `@Deactivate` and `@Modified`.
+Just write some additional methods (that have `void` as return type) and annotate those with these annotations to fully participate in the lifecycle of a service/component. However to see this behavior in action, we need to learn some additional things that are not covered by this example/explanation. (Just watch my repositories for an advanced ds example/explanation or go to [the official OSGi specifications](https://osgi.org/specification/osgi.core/7.0.0/) (rather tough stuff) or read all of [Dirk Fauth's great tutorials](http://blog.vogella.com/author/fipro/)).
+
+What about delayed services/components you might ask? A clever bunch you are ;)
+Delayed services/components look like this:
+
+```java
+@Component
+public class MyImpl implements MyInterface {
+  @Activate
+  void activate() {
+    System.out.println("Hello delayed OSGi");
+  }
+}
+```
+This one is implicitly delayed, as it provides a service, i.e., an interface it implements. Another possiblity would have been to declare the former service/component to explicitly be delayed by setting its immediate property to false, like this `@Component(immediate=false)`. If you do this in the example application of this repository then you will not see any output printed on the console.
+Why? Because OSGi does not start this component, therefore never calls its `@Activate` annotated method. 
+Why? Because it is not referenced from any other immediate service/component.
+Service/Components that implement an interface are considered as Services by OSGi. Services offer some fonctionality encapsulated through an interface/abstract class that is needed by other services/components. As long as there is no other (immediate) service/component that references our service/component then OSGi does not start it, i.e., delays it untilit is actually needed.
 
 
-### Components vs. Services in OSGi
+### Components vs. Services
+As attentive reader you may have noticed my strange use of service/component. This is because in literature/tutorial/posts those are often used synonymously, although strictly speaking they are different concepts in OSGi.
+
+A component is anything that has a `@Component` annotation annotated. A service on the other hand is usually the interface/class that this component implements/extends (implicit) or any class that is stated to be the service under which a component is registered by explicitly defining it (explicit).
+```java
+// service = Servlet.class implicitly
+@Component
+public class MyServlet implements Servlet {...}
+
+// service = Servlet.class explicitly
+@Component(service=Servlet.class)
+public class MyServlet extends HttpServlet {...}
+```
+
+
 
 But what do they do in the background?
 There are several components involved to get your component to work:
