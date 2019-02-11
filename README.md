@@ -193,3 +193,9 @@ This component is the place where OSGi magic is happening. It uses a so called E
 Whenever it finds such a bundle it loads the configuration for the components defined within them, in this case this configuration is the file /OSGI-INF/your.xml. It takes this configuration that states anything it needs to load the respective class (MyImmediateComponent), find its references (all fields annotated with `@Reference`), instantiate the references and the component itself via reflection, inject the references and then call the method annotated with `@Activate`.
 This all (and much, much ... MUCH more) is done for you if you use the DS annotations.
 
+
+## Conclusion
+If you are confused right now: that's ok. OSGi is, although easier than a decade ago, not the easiest technoloy on earth. This is largely due to the goals it pursues: truly modular applications that are runtime reconfigurable. Not an easy goal to achieve.
+I just can recommend you not to give up too early on OSGi. It takes quite some time until the paradigm shift in thinking abaout how to design appliactions settles in your mind, but when it does you're just asking yourself why the hell you didn't use OSGi all the time before ;)
+
+This example/explanation is hopefully just the first in a row, so watch my repositories for others (usually they start with io.jatoms.osgi.<topic>).
