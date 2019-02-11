@@ -186,7 +186,7 @@ Private-Package: io.jatoms.osgi.ds
 Created-By: 1.8.0_152 (Oracle Corporation)
 Build-Jdk: 1.8.0_152
 ```
-You see some stuff stays the same, e.g., Manifest-Version, but other stuff is added. The important part for us right now (in order to understand why the component is instantiated and working) is the Service-Component header (that's how these entries are called). This one is used at runtime (the time when your code actually runs in a system) to detect this bundle and, more important, the components wihtin. It is used to gather the information necessary to instantiate your components and wiring them up if they have some references. This is done for example by Aache Felix' Service Component Runtime (SCR).
+You see some stuff stays the same, e.g., Manifest-Version, but other stuff is added. The important part for us right now (in order to understand why the component is instantiated and working) is the Service-Component header (that's how these entries are called). This one is used at runtime (the time when your code actually runs in an osgi container) to detect this bundle and, more important, the components wihtin. It is used to gather the information necessary to instantiate your components and wiring them up if they have some references. This is done for example by Aache Felix' Service Component Runtime (SCR).
 
 ### Apache Felix SCR
 This component is the place where OSGi magic is happening. It uses a so called Extender Pattern (widely used in the OSGi space) to detect bundles that have a Service-Component header defined.
