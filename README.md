@@ -88,7 +88,23 @@ public class MyImpl implements MyInterface {
 This one is implicitly delayed, as it provides a service, i.e., an interface it implements. Another possiblity would have been to declare the former service/component to explicitly be delayed by setting its immediate property to false, like this `@Component(immediate=false)`. If you do this in the example application of this repository then you will not see any output printed on the console.
 Why? Because OSGi does not start this component, therefore never calls its `@Activate` annotated method. 
 Why? Because it is not referenced from any other immediate service/component.
-Service/Components that implement an interface are considered as Services by OSGi. Services offer some fonctionality encapsulated through an interface/abstract class that is needed by other services/components. As long as there is no other (immediate) service/component that references our service/component then OSGi does not start it, i.e., delays it untilit is actually needed.
+Service/Components that implement an interface are considered as Services by OSGi. Services offer some fonctionality encapsulated through an interface/abstract class that is needed by other services/components. As long as there is no other (immediate) service/component that references our service/component then OSGi does not start it, i.e., delays it until it is actually needed.
+
+How do you declare such a dependency you might ask. Nothing easier than that:
+```java
+@Component 
+public class MyImmediateComponent {
+
+  @Reference
+  MyInterface impl;
+  
+  @Activate
+  void activate() {
+    System.out.println("Hello Reference!");
+  }
+```
+
+This way both  services/components would start. You always reference the service of a component (What that means is explained below).
 
 
 ### Components vs. Services
@@ -105,14 +121,75 @@ public class MyServlet implements Servlet {...}
 public class MyServlet extends HttpServlet {...}
 ```
 
+It sometimes gets a little bit complicated when you do not use annotations to create components, but register your service programmatically (yes that's possible too, see below). 
+
+```java
+@Component
+public class FancyComp {
+  @Activate
+  void activate(BundleContext context) {
+    context.registerService(Servlet.class, new MyServlet, null);
+  }
+}
+```
+
+Now you didn't use an annotation (and well the thing you registerd is also not really a component, but can be found by real components through @Reference) but a service. I'm not really sure how you call that and therefore my confusion about service/components, but for the sake of simplicity I will just call those things "components" too and only the interface/class they are registered under "services".
+
+(IF ANYBODY KNOWS MORE ABOUT THIS ISSUE PLEASE OPEN AN ISSUE/PR ;) )
 
 
-But what do they do in the background?
-There are several components involved to get your component to work:
+## Behind the curtain
+
+Now that we know (at least mostly) what components are (classes you don't instantiate yourself, that have a lifecycle and you can wire them together via references) and how services play into this (sort of interface every component is registered under) we will now have a look at what is happening behind the curtains to make this work. Classes don't just instantiate themselves just because you put a fancy annotation on them, don't they? 
+
+Well no. The don't. There are several components involved to get your component to work:
 
 ### bnd 
 (or any other build tool that can translate your DS annotations)
 
+You've put this fancy `@Component` annotation on your class. This by itself does nothing, but in combination with a build tool that understands those annotations (e.g., bnd) this will produce some cool XML. XML? Yes! This is where the **old** part comes into play I mentioned at the beginning. You remember? Old means in the background we are still using XML, although it's not a super hip technology as YAML, TOML or (beware) JSON (No JSON is not a good format for writing human readable configurations! Sorry I'm digressing. Back to the produced XML.)
 
+The  XML produced by bnd describes your component in a format that is machine (and also a little bit human) readable. For example the above mentioned class `MyImmediateComponent` that has a reference on `MyInterface` would produce an XML file similar to this:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.3.0" name="io.jatoms.osgi.ds.MyImmediateComponent" activate="activate">
+  <reference name="impl" interface="io.jatoms.osgi.ds.MyInterface" field="impl"/>
+</scr:component>
+```
 
+This XML file then is stored as additional meta data in your bundle in a predefined place, i.e., "bundle/OSG-INF/your.xml". 
+What bnd also does (when it finds at least one class annotated with `@Component`) is to create additional information within your MANIFEST.MF file. 
+
+The MANIFEST.MF file is something a regular Java developer rarly touches. In non-OSGi jars this file usually conatins something like this 
+```
+Manifest-Version: 1.0
+Built-By: root
+Created-By: 1.8.0_152 (Oracle Corporation)
+Build-Jdk: 1.8.0_152
+```
+
+Nothing special here. As soon as you are using tools like bnd and are developing an OSGi bundle (You remember? A jar with additional meta data?) then there's more information contained in this file, e.g., like this:
+
+```
+Manifest-Version: 1.0
+Bundle-SymbolicName: io.jatoms.flow.osgi.integration
+Built-By: root
+
+Bundle-ManifestVersion: 2
+Require-Capability: osgi.extender;filter:="(&(osgi.extender=osgi.component)(version>=1.4.0)(!(version>=2.0.0)))"
+Service-Component: OSGI-INF/your.xml
+Provide-Capability: osgi.service;objectClass:List<String>="io.jatoms.osgi.ds.MyInterface"
+Bundle-Name: io.jatoms.osgi.ds
+Bundle-Version: 0.0.1.201902081546
+Private-Package: io.jatoms.osgi.ds
+
+Created-By: 1.8.0_152 (Oracle Corporation)
+Build-Jdk: 1.8.0_152
+```
+You see some stuff stays the same, e.g., Manifest-Version, but other stuff is added. The important part for us right now (in order to understand why the component is instantiated and working) is the Service-Component header (that's how these entries are called). This one is used at runtime (the time when your code actually runs in a system) to detect this bundle and, more important, the components wihtin. It is used to gather the information necessary to instantiate your components and wiring them up if they have some references. This is done for example by Aache Felix' Service Component Runtime (SCR).
+
+### Apache Felix SCR
+This component is the place where OSGi magic is happening. It uses a so called Extender Pattern (widely used in the OSGi space) to detect bundles that have a Service-Component header defined.
+Whenever it finds such a bundle it loads the configuration for the components defined within them, in this case this configuration is the file /OSGI-INF/your.xml. It takes this configuration that states anything it needs to load the respective class (MyImmediateComponent), find its references (all fields annotated with `@Reference`), instantiate the references and the component itself via reflection, inject the references and then call the method annotated with `@Activate`.
+This all (and much, much ... MUCH more) is done for you if you use the DS annotations.
 
