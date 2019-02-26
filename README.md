@@ -110,33 +110,33 @@ This way both  services/components would start. You always reference the service
 ### Components vs. Services
 As attentive reader you may have noticed my strange use of service/component. This is because in literature/tutorial/posts those are often used synonymously, although strictly speaking they are different concepts in OSGi.
 
-A component is anything that has a `@Component` annotation annotated. A service on the other hand is usually the interface/class that this component implements/extends (implicit) or any class that is stated to be the service under which a component is registered by explicitly defining it (explicit).
+A component is anything that has a `@Component` annotation annotated. Those classes are instantiated by a ServiceComponentRuntime at runtime. They have a lifecycle (as depicted above) and also have references to other services/components. A service on the other hand is usually a plain old jJava object that is registered under an interface (this can ba a class, anabstract class or an interface) at the OSGi service registry. 
+
+Components can only be defined declaratively by either using annotations as shown below or writing the corresponding XML (not recommended)
+
 ```java
-// service = Servlet.class implicitly
 @Component
 public class MyServlet implements Servlet {...}
-
-// service = Servlet.class explicitly
-@Component(service=Servlet.class)
-public class MyServlet extends HttpServlet {...}
 ```
 
-It sometimes gets a little bit complicated when you do not use annotations to create components, but register your service programmatically (yes that's possible too, see below). 
+In contrast to components (Declarative Services) which are defined declaratively by using annotations, services can be registered programmatically, see below. 
 
 ```java
 @Component
 public class FancyComp {
   @Activate
   void activate(BundleContext context) {
-    context.registerService(Servlet.class, new MyServlet, null);
+    // register a service
+    context.registerService(Servlet.class, new MyServlet(), null);
   }
 }
 ```
 
-Now you didn't use an annotation (and well the thing you registerd is also not really a component, but can be found by real components through @Reference) but a service. I'm not really sure how you call that and therefore my confusion about service/components, but for the sake of simplicity I will just call those things "components" too and only the interface/class they are registered under "services".
+There we use a DS component to register a service during activation. You could also use a `BundleActivator` for that or can even do it from any normal Java class. You only need a `BundleContext` to do so. In any normal Java class you can get access to a `BundleContext` via `FrameworkUtil.getBundle(someClass).getBundleContext()`.
 
-(IF ANYBODY KNOWS MORE ABOUT THIS ISSUE PLEASE OPEN AN ISSUE/PR ;) )
+The service we just registered is registered under the `Servlet` class as interface and we didn't provide any additional properties (null). We could have provided properties by passing a `Dictionary<String, Object>` where you can put virtually anything you want as meta information for your service.
 
+Services can be seen as the smallest common denominator when it comes to bundle interoperability. For example: the SCR is a powerful DI framework that is aware of OSGi's dynamism, but the objects it instantiates could actually not be used by any other class that is not also a `@Component`. Luckily, SCR also registers all its components as services at the OSGi service registry, so that we still are able to get a reference to any component from non-component classes, e.g., via `context.getService(context.getServiceReference(Servlet.class))` where context is a `BundleContext`
 
 ## Behind the curtain
 
