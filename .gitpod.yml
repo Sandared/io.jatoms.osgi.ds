@@ -4,4 +4,4 @@ ports:
   - port: 8000
   - port: 8080
 tasks:
-  - command: "cd osgi.ds && resolve app && run app/target/app.jar"
+  - command: "cd osgi.ds && resolve app && java -jar app/target/app.jar"
